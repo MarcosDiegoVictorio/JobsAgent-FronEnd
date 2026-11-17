@@ -1,0 +1,1103 @@
+<div class="app-container">
+  <!-- Top Navigation Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-box">
+        <span class="logo-icon" aria-hidden="true">J</span>
+        <div class="logo-text">
+          <h1>JobAgent</h1>
+          <span class="version-tag">Painel de oportunidades</span>
+        </div>
+      </div>
+
+      <nav class="nav-tabs">
+        <button
+          class="nav-tab"
+          [class.active]="activeTab === 'jobs'"
+          (click)="setTab('jobs')">
+          <span class="tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none">
+              <rect x="2.5" y="2.5" width="6" height="6" rx="1" />
+              <rect x="11.5" y="2.5" width="6" height="6" rx="1" />
+              <rect x="2.5" y="11.5" width="6" height="6" rx="1" />
+              <rect x="11.5" y="11.5" width="6" height="6" rx="1" />
+            </svg>
+          </span>
+          Vagas & Funil
+          @if (stats?.totalJobs) {
+            <span class="counter-badge">{{ stats?.totalJobs }}</span>
+          }
+        </button>
+        <button
+          class="nav-tab"
+          [class.active]="activeTab === 'config'"
+          (click)="setTab('config')">
+          <span class="tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="10" r="3" />
+              <path d="M16.2 11.5a6.6 6.6 0 0 0 0-3l1.2-.9-1.6-2.8-1.4.5a6.6 6.6 0 0 0-2.6-1.5L11.5 2h-3l-.3 1.8a6.6 6.6 0 0 0-2.6 1.5l-1.4-.5-1.6 2.8 1.2.9a6.6 6.6 0 0 0 0 3l-1.2.9 1.6 2.8 1.4-.5a6.6 6.6 0 0 0 2.6 1.5l.3 1.8h3l.3-1.8a6.6 6.6 0 0 0 2.6-1.5l1.4.5 1.6-2.8-1.2-.9Z" />
+            </svg>
+          </span>
+          Configurações
+        </button>
+        <button
+          class="nav-tab"
+          [class.active]="activeTab === 'profile'"
+          (click)="setTab('profile')">
+          <span class="tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="6.5" r="3.2" />
+              <path d="M3.5 17c.4-3.1 2.9-5.2 6.5-5.2s6.1 2.1 6.5 5.2" />
+            </svg>
+          </span>
+          Perfil do Candidato
+        </button>
+      </nav>
+    </div>
+
+    <div class="header-right">
+      <!-- Status Badge -->
+      <div class="status-indicator" [class.running]="runStatus().isRunning">
+        <div class="status-dot"></div>
+        <div class="status-details">
+          <span class="status-label">
+            {{ runStatus().isRunning ? 'Executando' : 'Agente Ocioso' }}
+          </span>
+          <span class="status-phase">
+            {{ runStatus().currentPhase || 'Aguardando próximo ciclo' }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Action Button -->
+      <button
+        class="btn btn-primary btn-run"
+        [disabled]="runStatus().isRunning"
+        (click)="triggerRun()">
+        @if (runStatus().isRunning) {
+          <span class="spinner"></span>
+          Buscando...
+        } @else {
+          Executar busca
+        }
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Body Content -->
+  <main class="app-main">
+    <!-- ================================================= -->
+    <!-- TAB 1: VAGAS & FUNIL -->
+    <!-- ================================================= -->
+    @if (activeTab === 'jobs') {
+      <section class="tab-content">
+        <div class="dashboard-heading">
+          <div>
+            <span class="eyebrow">PAINEL DE VAGAS</span>
+            <h2>Suas oportunidades</h2>
+            <p>Acompanhe novas vagas e o andamento das suas candidaturas.</p>
+          </div>
+          <div class="dashboard-summary">
+            <span>Vagas no painel</span>
+            <strong>{{ stats?.totalJobs || 0 }}</strong>
+          </div>
+        </div>
+
+        <!-- Funnel Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card" (click)="applyStatusFilter('')" [class.selected]="!filter.status">
+            <div class="stat-info">
+              <span class="stat-value">{{ stats?.totalJobs || 0 }}</span>
+              <span class="stat-name">Total de Vagas</span>
+            </div>
+          </div>
+
+          <div class="stat-card" (click)="applyStatusFilter('novo')" [class.selected]="filter.status === 'novo'">
+            <div class="stat-info">
+              <span class="stat-value">{{ stats?.newJobs || 0 }}</span>
+              <span class="stat-name">Novas</span>
+            </div>
+          </div>
+
+          <div class="stat-card" (click)="applyStatusFilter('aplicado')" [class.selected]="filter.status === 'aplicado'">
+            <div class="stat-info">
+              <span class="stat-value">{{ stats?.appliedJobs || 0 }}</span>
+              <span class="stat-name">Aplicadas</span>
+            </div>
+          </div>
+
+          <div class="stat-card" (click)="applyStatusFilter('entrevista')" [class.selected]="filter.status === 'entrevista'">
+            <div class="stat-info">
+              <span class="stat-value">{{ stats?.interviewJobs || 0 }}</span>
+              <span class="stat-name">Em Entrevista</span>
+            </div>
+          </div>
+
+          <div class="stat-card" (click)="applyStatusFilter('salvo')" [class.selected]="filter.status === 'salvo'">
+            <div class="stat-info">
+              <span class="stat-value">{{ stats?.savedJobs || 0 }}</span>
+              <span class="stat-name">Salvas</span>
+            </div>
+          </div>
+
+          <div class="stat-card" (click)="applyStatusFilter('descartada')" [class.selected]="filter.status === 'descartada'">
+            <div class="stat-info">
+              <span class="stat-value">{{ stats?.discardedJobs || 0 }}</span>
+              <span class="stat-name">Descartadas</span>
+            </div>
+          </div>
+
+          <div class="stat-card highlight-card">
+            <div class="stat-info">
+              <span class="stat-value">{{ stats?.averageScore || 0 }}/10</span>
+              <span class="stat-name">Média de Aderência (IA)</span>
+            </div>
+          </div>
+        </div>
+
+        <section class="job-board-card" aria-labelledby="job-board-title">
+          <div class="job-board-heading">
+            <div>
+              <h3 id="job-board-title">Fontes de vagas</h3>
+              <p>O JobAgent coleta vagas publicadas na Gupy. Nos outros sites, abra a pesquisa para consultar diretamente.</p>
+            </div>
+            <span class="source-availability">Gupy · coleta automática</span>
+          </div>
+          <div class="job-board-links">
+            <a [href]="getBoardSearchUrl('gupy')" target="_blank" rel="noopener noreferrer">Gupy ↗</a>
+            <a [href]="getBoardSearchUrl('infojobs')" target="_blank" rel="noopener noreferrer">InfoJobs ↗</a>
+            <a [href]="getBoardSearchUrl('catho')" target="_blank" rel="noopener noreferrer">Catho ↗</a>
+            <a [href]="getBoardSearchUrl('indeed')" target="_blank" rel="noopener noreferrer">Indeed ↗</a>
+          </div>
+          <p class="job-board-note">
+            InfoJobs, Catho e Indeed não são coletados automaticamente nesta versão; as buscas públicas consultadas apresentaram restrições.
+            Seus feeds RSS personalizados continuam disponíveis nas configurações.
+          </p>
+        </section>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="toolbar-card">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true"></span>
+            <input
+              type="text"
+              placeholder="Buscar por cargo, empresa ou palavra-chave..."
+              [(ngModel)]="filter.search"
+              (keyup.enter)="onSearch()" />
+            @if (filter.search) {
+              <button class="btn-clear" (click)="filter.search = ''; onSearch()">✕</button>
+            }
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">Nota Mínima:</label>
+            <select [(ngModel)]="filter.minScore" (change)="onSearch()" class="form-select">
+              <option [ngValue]="undefined">Todas as notas</option>
+              <option [ngValue]="9">9+ (Excepcional)</option>
+              <option [ngValue]="7">7+ (Alta aderência)</option>
+              <option [ngValue]="5">5+ (Média)</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">Ordenar por:</label>
+            <select [(ngModel)]="filter.orderBy" (change)="onSearch()" class="form-select">
+              <option value="score">Nota de Aderência</option>
+              <option value="created_at">Data de Coleta</option>
+              <option value="title">Título do Cargo</option>
+              <option value="company">Empresa</option>
+            </select>
+          </div>
+
+          <button class="btn btn-secondary" (click)="loadJobs()">
+            Atualizar
+          </button>
+        </div>
+
+        <!-- Jobs Grid -->
+        @if (isLoadingJobs) {
+          <div class="loading-state">
+            <div class="spinner-large"></div>
+            <p>Carregando vagas avaliadas pelo JobAgent...</p>
+          </div>
+        } @else if (jobs.length === 0) {
+          <div class="empty-state">
+            <h3>Nenhuma vaga encontrada</h3>
+            <p>Tente ajustar os filtros ou clique em <strong>"Executar Busca Agora"</strong> para coletar novas oportunidades.</p>
+            <button class="btn btn-primary" (click)="triggerRun()">
+              Executar busca
+            </button>
+          </div>
+        } @else {
+          <div class="jobs-grid">
+            @for (job of jobs; track job.id) {
+              <div class="job-card" (click)="openJobModal(job)">
+                <div class="job-card-header">
+                  <div class="job-source-tag">
+                    {{ job.source }}
+                  </div>
+                  <div class="score-badge" [ngClass]="getScoreBadgeClass(job.score)">
+                    <span class="score-num">{{ job.score }}</span>/10
+                  </div>
+                </div>
+
+                <h3 class="job-title" [title]="job.title">{{ job.title }}</h3>
+                <div class="job-company">
+                  {{ job.company || 'Empresa não informada' }}
+                </div>
+
+                <p class="job-summary">
+                  {{ job.summary || 'Sem resumo disponível.' }}
+                </p>
+
+                <!-- Tags preview -->
+                @if (job.strengths && job.strengths.length > 0) {
+                  <div class="strengths-preview">
+                    <span class="strength-pill">✓ {{ job.strengths[0] }}</span>
+                    @if (job.strengths.length > 1) {
+                      <span class="more-pill">+{{ job.strengths.length - 1 }}</span>
+                    }
+                  </div>
+                }
+
+                <div class="job-card-footer">
+                  <span class="status-tag" [ngClass]="getStatusBadgeClass(job.status)">
+                    {{ job.status | uppercase }}
+                  </span>
+                  <div class="card-actions" (click)="$event.stopPropagation()">
+                    <a [href]="job.url" target="_blank" rel="noopener noreferrer" class="btn-icon" title="Abrir vaga" aria-label="Abrir vaga">
+                      ↗
+                    </a>
+                    <button class="btn-icon" (click)="openJobModal(job)" title="Ver análise" aria-label="Ver análise">
+                      i
+                    </button>
+                    <button class="btn-icon btn-icon-danger" (click)="deleteJob(job, $event)" title="Remover vaga">
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Pagination -->
+          <div class="pagination-bar">
+            <span class="pagination-info">
+              Página {{ filter.page }} de {{ totalPages }} ({{ totalJobs }} vagas)
+            </span>
+            <div class="pagination-buttons">
+              <button class="btn btn-secondary btn-sm" [disabled]="filter.page === 1" (click)="prevPage()">
+                ◀ Anterior
+              </button>
+              <button class="btn btn-secondary btn-sm" [disabled]="filter.page === totalPages" (click)="nextPage()">
+                Próxima ▶
+              </button>
+            </div>
+          </div>
+        }
+      </section>
+    }
+
+    <!-- ================================================= -->
+    <!-- TAB 2: CONFIGURAÇÕES -->
+    <!-- ================================================= -->
+    @if (activeTab === 'config') {
+      <section class="tab-content config-tab">
+        <div class="section-header">
+          <div>
+            <h2>Configurações do JobAgent</h2>
+            <p class="section-desc">Ajuste os critérios de busca, os provedores de IA, as notificações e as fontes de vagas.</p>
+          </div>
+          <button class="btn btn-primary btn-save-header" [disabled]="isSavingConfig" (click)="saveConfig()">
+            @if (isSavingConfig) {
+              <span class="spinner"></span> Salvando...
+            } @else {
+              Salvar configurações
+            }
+          </button>
+        </div>
+
+        <div class="config-grid">
+          <!-- CARD 1: AGENTE & REGRAS DE BUSCA -->
+          <div class="config-card">
+            <div class="card-title">
+              <h3>Agente & Automação</h3>
+            </div>
+
+            <div class="form-group">
+              <label>Intervalo de Execução (Minutos)</label>
+              <input type="number" [(ngModel)]="config.agent.runEveryMinutes" min="5" max="1440" class="form-input" />
+              <span class="form-hint">Frequência em que o worker procura novas vagas automaticamente (ex: 360 = 6 horas).</span>
+            </div>
+
+            <div class="form-group">
+              <div class="label-with-value">
+                <label>Nota Mínima para Notificação (Telegram)</label>
+                <span class="value-badge">{{ config.agent.minScoreToNotify }}/10</span>
+              </div>
+              <input
+                type="range"
+                [(ngModel)]="config.agent.minScoreToNotify"
+                min="1"
+                max="10"
+                class="form-range" />
+              <span class="form-hint">Apenas vagas com pontuação igual ou superior a esta dispararão notificações no Telegram.</span>
+            </div>
+
+            <div class="form-group">
+              <label>Limite Máximo de Avaliações por Ciclo</label>
+              <input type="number" [(ngModel)]="config.agent.maxJobsPerRun" min="1" max="200" class="form-input" />
+              <span class="form-hint">Limite de avaliações feitas pelo provedor de IA em cada execução.</span>
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-container">
+                <input type="checkbox" [(ngModel)]="config.agent.enableBackgroundWorker" />
+                <span class="checkmark"></span>
+                <span>Ativar Agente em Segundo Plano (Background Worker)</span>
+              </label>
+              <span class="form-hint">Quando ativado, o JobAgent executa de forma autônoma nos intervalos programados.</span>
+            </div>
+
+            <!-- Keywords Include -->
+            <div class="form-group">
+              <label>Palavras-chave Obrigatórias no Título / Descrição</label>
+              <div class="tag-input-box">
+                <input
+                  type="text"
+                  placeholder="Ex: .net, c#, backend... (Pressione Enter)"
+                  [(ngModel)]="newIncludeKeyword"
+                  (keyup.enter)="addIncludeKeyword()"
+                  class="form-input" />
+                <button type="button" class="btn btn-secondary btn-sm" (click)="addIncludeKeyword()">Adicionar</button>
+              </div>
+              <div class="tags-list">
+                @for (kw of config.agent.includeTitleKeywords; track kw; let idx = $index) {
+                  <span class="tag-pill tag-include">
+                    {{ kw }}
+                    <button (click)="removeIncludeKeyword(idx)">✕</button>
+                  </span>
+                }
+              </div>
+              <span class="form-hint">Antes da avaliação, descarta vagas que não contenham nenhuma dessas palavras.</span>
+            </div>
+
+            <!-- Keywords Exclude -->
+            <div class="form-group">
+              <label>Palavras-chave a Ignorar (Exclusão)</label>
+              <div class="tag-input-box">
+                <input
+                  type="text"
+                  placeholder="Ex: estagio, junior, suporte... (Pressione Enter)"
+                  [(ngModel)]="newExcludeKeyword"
+                  (keyup.enter)="addExcludeKeyword()"
+                  class="form-input" />
+                <button type="button" class="btn btn-secondary btn-sm" (click)="addExcludeKeyword()">Adicionar</button>
+              </div>
+              <div class="tags-list">
+                @for (kw of config.agent.excludeTitleKeywords; track kw; let idx = $index) {
+                  <span class="tag-pill tag-exclude">
+                    {{ kw }}
+                    <button (click)="removeExcludeKeyword(idx)">✕</button>
+                  </span>
+                }
+              </div>
+              <span class="form-hint">Vagas com qualquer uma dessas palavras no título serão imediatamente descartadas.</span>
+            </div>
+          </div>
+
+          <!-- CARD 2: INTELIGÊNCIA ARTIFICIAL (GEMINI / CLAUDE) -->
+          <div class="config-card">
+            <div class="card-title">
+              <h3>Inteligência Artificial & Avaliação</h3>
+            </div>
+
+            <!-- Provider Selector -->
+            <div class="form-group">
+              <label>Provedor de IA Ativo</label>
+              <div class="provider-toggle-group">
+                <button
+                  type="button"
+                  class="provider-btn"
+                  [class.active]="config.agent.llmProvider === 'Gemini'"
+                  (click)="config.agent.llmProvider = 'Gemini'">
+                  Google Gemini (Recomendado)
+                </button>
+                <button
+                  type="button"
+                  class="provider-btn"
+                  [class.active]="config.agent.llmProvider === 'Anthropic'"
+                  (click)="config.agent.llmProvider = 'Anthropic'">
+                  Anthropic Claude
+                </button>
+              </div>
+            </div>
+
+            <!-- ================= GOOGLE GEMINI ================= -->
+            @if (config.agent.llmProvider === 'Gemini') {
+              <div class="provider-fields">
+                <div class="form-group">
+                  <label>Chave de API do Google Gemini (Google AI Studio)</label>
+                  <div class="input-with-button">
+                    <input
+                      [type]="showGeminiApiKey ? 'text' : 'password'"
+                      placeholder="AIzaSy..."
+                      [(ngModel)]="config.gemini.apiKey"
+                      class="form-input font-mono" />
+                    <button type="button" class="btn btn-secondary" (click)="showGeminiApiKey = !showGeminiApiKey">
+                      {{ showGeminiApiKey ? 'Ocultar' : 'Revelar' }}
+                    </button>
+                  </div>
+                  <span class="form-hint">Obtenha sua chave gratuitamente em <strong>aistudio.google.com</strong>.</span>
+                </div>
+
+                <div class="form-group">
+                  <label>Modelo do Gemini</label>
+                  <select [(ngModel)]="config.gemini.model" class="form-select font-mono">
+                    <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Recomendado — Rápido & Econômico)</option>
+                    <option value="gemini-3-flash-preview">gemini-3-flash-preview (Maior Capacidade)</option>
+                    <option value="gemini-flash-lite-latest">gemini-flash-lite-latest (Sempre o Mais Recente)</option>
+                  </select>
+                </div>
+
+                <!-- Test Gemini Box -->
+                <div class="test-box">
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-test"
+                    [disabled]="testing.gemini || !config.gemini.apiKey"
+                    (click)="testGemini()">
+                    @if (testing.gemini) {
+                      <span class="spinner"></span> Testando conexão Gemini...
+                    } @else {
+                      Testar conexão Gemini
+                    }
+                  </button>
+
+                  @if (testResults.gemini) {
+                    <div class="test-result-badge" [class.success]="testResults.gemini.success" [class.error]="!testResults.gemini.success">
+                      {{ testResults.gemini.success ? 'Sucesso' : 'Falha' }} —
+                      {{ testResults.gemini.message }}
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- ================= ANTHROPIC CLAUDE ================= -->
+            @if (config.agent.llmProvider === 'Anthropic') {
+              <div class="provider-fields">
+                <div class="form-group">
+                  <label>Chave de API da Anthropic (ApiKey)</label>
+                  <div class="input-with-button">
+                    <input
+                      [type]="showApiKey ? 'text' : 'password'"
+                      placeholder="sk-ant-api03-..."
+                      [(ngModel)]="config.anthropic.apiKey"
+                      class="form-input font-mono" />
+                    <button type="button" class="btn btn-secondary" (click)="showApiKey = !showApiKey">
+                      {{ showApiKey ? 'Ocultar' : 'Revelar' }}
+                    </button>
+                  </div>
+                  <span class="form-hint">Utilizada com a técnica de <em>Tool Use</em> para gerar notas e justificativas estruturadas.</span>
+                </div>
+
+                <div class="form-group">
+                  <label>Modelo do Claude</label>
+                  <select [(ngModel)]="config.anthropic.model" class="form-select font-mono">
+                    <option value="claude-sonnet-5-5">claude-sonnet-5-5 (Mais Recente)</option>
+                    <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-20241022</option>
+                    <option value="claude-3-haiku-20240307">claude-3-haiku-20240307 (Ultrarrápido & Econômico)</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label>Max Tokens de Resposta</label>
+                  <input type="number" [(ngModel)]="config.anthropic.maxTokens" min="500" max="4000" class="form-input" />
+                </div>
+
+                <!-- Test Connection Box -->
+                <div class="test-box">
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-test"
+                    [disabled]="testing.anthropic || !config.anthropic.apiKey"
+                    (click)="testAnthropic()">
+                    @if (testing.anthropic) {
+                      <span class="spinner"></span> Testando conexão...
+                    } @else {
+                      Testar conexão Anthropic
+                    }
+                  </button>
+
+                  @if (testResults.anthropic) {
+                    <div class="test-result-badge" [class.success]="testResults.anthropic.success" [class.error]="!testResults.anthropic.success">
+                      {{ testResults.anthropic.success ? 'Sucesso' : 'Falha' }} —
+                      {{ testResults.anthropic.message }}
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- CARD 3: NOTIFICAÇÕES TELEGRAM -->
+          <div class="config-card">
+            <div class="card-title">
+              <h3>Notificações no Telegram</h3>
+            </div>
+
+            <div class="form-group">
+              <label>Bot Token</label>
+              <input
+                type="text"
+                placeholder="123456789:ABCdefGhIJKlmNoPQRstuVWxYZ"
+                [(ngModel)]="config.telegram.botToken"
+                class="form-input font-mono" />
+              <span class="form-hint">Obtenha criando um bot com o @BotFather no Telegram.</span>
+            </div>
+
+            <div class="form-group">
+              <label>Chat ID</label>
+              <input
+                type="text"
+                placeholder="Ex: 123456789"
+                [(ngModel)]="config.telegram.chatId"
+                class="form-input font-mono" />
+              <span class="form-hint">Seu ID de usuário ou do canal/grupo onde deseja receber os avisos.</span>
+            </div>
+
+            <!-- Test Telegram Box -->
+            <div class="test-box">
+              <button
+                type="button"
+                class="btn btn-secondary btn-test"
+                [disabled]="testing.telegram || !config.telegram.botToken || !config.telegram.chatId"
+                (click)="testTelegram()">
+                @if (testing.telegram) {
+                  <span class="spinner"></span> Enviando mensagem...
+                } @else {
+                  Testar notificação no Telegram
+                }
+              </button>
+
+              @if (testResults.telegram) {
+                <div class="test-result-badge" [class.success]="testResults.telegram.success" [class.error]="!testResults.telegram.success">
+                  {{ testResults.telegram.success ? 'Sucesso' : 'Falha' }} —
+                  {{ testResults.telegram.message }}
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- CARD 4: FONTES RSS / ATOM -->
+          <div class="config-card">
+            <div class="card-title">
+              <h3>Feeds RSS / Boards de Vagas</h3>
+            </div>
+
+            <p class="card-desc">Adicione feeds RSS/Atom de plataformas de vagas remotas ou especializadas.</p>
+
+            <div class="rss-add-row">
+              <input
+                type="text"
+                placeholder="Nome (ex: Remotar, WeWorkRemotely)"
+                [(ngModel)]="newRssFeed.name"
+                class="form-input" />
+              <input
+                type="url"
+                placeholder="https://exemplo.com/feed.xml"
+                [(ngModel)]="newRssFeed.url"
+                class="form-input font-mono" />
+              <button type="button" class="btn btn-primary" (click)="addRssFeed()">
+                + Adicionar
+              </button>
+            </div>
+
+            <div class="rss-list">
+              @if (config.rss.feeds.length === 0) {
+                <div class="empty-list-notice">
+                  Nenhum feed RSS cadastrado. Adicione URLs de feeds acima.
+                </div>
+              } @else {
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>URL do Feed</th>
+                      <th class="text-right">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (feed of config.rss.feeds; track feed.url; let idx = $index) {
+                      <tr>
+                        <td class="font-medium">{{ feed.name }}</td>
+                        <td class="font-mono text-muted text-sm">{{ feed.url }}</td>
+                        <td class="text-right">
+                          <button class="btn-icon btn-icon-danger" (click)="removeRssFeed(idx)">✕</button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          </div>
+
+          <!-- CARD 5: ALERTAS POR E-MAIL (IMAP) -->
+          <div class="config-card full-width-card">
+            <div class="card-title">
+              <h3>Alertas de Vagas por E-mail (IMAP)</h3>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="checkbox-container">
+                  <input type="checkbox" [(ngModel)]="config.email.enabled" />
+                  <span class="checkmark"></span>
+                  <strong>Habilitar Coleta por E-mail (IMAP)</strong>
+                </label>
+                <span class="form-hint">Lê alertas automáticos recebidos do LinkedIn, Indeed, Gupy, Glassdoor, etc.</span>
+              </div>
+            </div>
+
+            <div class="form-row three-cols">
+              <div class="form-group">
+                <label>Servidor IMAP (Host)</label>
+                <input type="text" [(ngModel)]="config.email.host" class="form-input font-mono" />
+              </div>
+              <div class="form-group">
+                <label>Porta</label>
+                <input type="number" [(ngModel)]="config.email.port" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label>Pasta IMAP</label>
+                <input type="text" [(ngModel)]="config.email.folder" class="form-input" />
+              </div>
+            </div>
+
+            <div class="form-row two-cols">
+              <div class="form-group">
+                <label>E-mail (Usuário)</label>
+                <input type="email" placeholder="voce@gmail.com" [(ngModel)]="config.email.user" class="form-input" />
+              </div>
+
+              <div class="form-group">
+                <label>Senha de Aplicativo (App Password)</label>
+                <div class="input-with-button">
+                  <input
+                    [type]="showEmailPassword ? 'text' : 'password'"
+                    placeholder="ex: abcd efgh ijkl mnop"
+                    [(ngModel)]="config.email.appPassword"
+                    class="form-input font-mono" />
+                  <button type="button" class="btn btn-secondary" (click)="showEmailPassword = !showEmailPassword">
+                    {{ showEmailPassword ? 'Ocultar' : 'Revelar' }}
+                  </button>
+                </div>
+                <span class="form-hint">No Gmail: Conta Google &gt; Segurança &gt; Verificação em 2 etapas &gt; Senhas de app.</span>
+              </div>
+            </div>
+
+            <div class="form-row two-cols">
+              <!-- From contains -->
+              <div class="form-group">
+                <label>Filtro de Remetente (FromContains)</label>
+                <div class="tag-input-box">
+                  <input
+                    type="text"
+                    placeholder="Ex: linkedin.com, indeed.com..."
+                    [(ngModel)]="newEmailFrom"
+                    (keyup.enter)="addEmailFrom()"
+                    class="form-input" />
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="addEmailFrom()">Adicionar</button>
+                </div>
+                <div class="tags-list">
+                  @for (f of config.email.fromContains; track f; let idx = $index) {
+                    <span class="tag-pill tag-include">
+                      {{ f }}
+                      <button (click)="removeEmailFrom(idx)">✕</button>
+                    </span>
+                  }
+                </div>
+              </div>
+
+              <!-- Link contains -->
+              <div class="form-group">
+                <label>Filtro de Links de Vaga (LinkContains)</label>
+                <div class="tag-input-box">
+                  <input
+                    type="text"
+                    placeholder="Ex: /jobs/view, viewjob, gupy.io..."
+                    [(ngModel)]="newEmailLink"
+                    (keyup.enter)="addEmailLink()"
+                    class="form-input" />
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="addEmailLink()">Adicionar</button>
+                </div>
+                <div class="tags-list">
+                  @for (l of config.email.linkContains; track l; let idx = $index) {
+                    <span class="tag-pill tag-include">
+                      {{ l }}
+                      <button (click)="removeEmailLink(idx)">✕</button>
+                    </span>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <!-- Test Email Box -->
+            <div class="test-box">
+              <button
+                type="button"
+                class="btn btn-secondary btn-test"
+                [disabled]="testing.email || !config.email.user || !config.email.appPassword"
+                (click)="testEmail()">
+                @if (testing.email) {
+                  <span class="spinner"></span> Testando conexão IMAP...
+                } @else {
+                  Testar conexão IMAP
+                }
+              </button>
+
+              @if (testResults.email) {
+                <div class="test-result-badge" [class.success]="testResults.email.success" [class.error]="!testResults.email.success">
+                  {{ testResults.email.success ? 'Sucesso' : 'Falha' }} —
+                  {{ testResults.email.message }}
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Save Button Bar -->
+        <div class="save-bar">
+          <button class="btn btn-success btn-large" [disabled]="isSavingConfig" (click)="saveConfig()">
+            @if (isSavingConfig) {
+              <span class="spinner"></span> Salvando Configurações...
+            } @else {
+              Salvar configurações
+            }
+          </button>
+        </div>
+      </section>
+    }
+
+    <!-- ================================================= -->
+    <!-- TAB 3: PERFIL DO CANDIDATO -->
+    <!-- ================================================= -->
+    @if (activeTab === 'profile') {
+      <section class="tab-content profile-tab">
+        <div class="section-header">
+          <div>
+            <h2>Seu perfil profissional</h2>
+            <p class="section-desc">
+              Seu perfil contextualiza as avaliações feitas pelo provedor de IA selecionado.
+              Mantenha-o atualizado com suas experiências, tecnologias e objetivos profissionais.
+            </p>
+          </div>
+          <button class="btn btn-success" [disabled]="isSavingProfile" (click)="saveProfile()">
+            @if (isSavingProfile) {
+              <span class="spinner"></span> Salvando...
+            } @else {
+              Salvar perfil
+            }
+          </button>
+        </div>
+
+        <div class="config-card profile-management-card">
+          <div class="profile-management-fields">
+            <div class="form-group">
+              <label for="active-profile">Perfil ativo</label>
+              <select
+                id="active-profile"
+                class="form-select"
+                [ngModel]="activeProfileId"
+                (ngModelChange)="activateProfile($event)"
+                [disabled]="isLoadingProfile || isSavingProfile">
+                @for (profile of profiles; track profile.id) {
+                  <option [value]="profile.id">{{ profile.name }}{{ profile.isActive ? ' (ativo)' : '' }}</option>
+                }
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="new-profile-name">Criar outro perfil</label>
+              <div class="tag-input-box">
+                <input
+                  id="new-profile-name"
+                  type="text"
+                  class="form-input"
+                  maxlength="80"
+                  placeholder="Ex.: Analista de sistemas"
+                  [(ngModel)]="newProfileName"
+                  (keyup.enter)="createProfile()" />
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  [disabled]="isSavingProfile || !newProfileName.trim()"
+                  (click)="createProfile()">
+                  Salvar como novo
+                </button>
+              </div>
+            </div>
+          </div>
+          <p class="form-hint">Cada perfil mantém seu próprio texto, filtros e histórico de vagas. Criar outro perfil não apaga o histórico atual.</p>
+        </div>
+
+        <div class="config-card profile-import-card">
+          <div class="card-title">
+            <h3>Analisar perfil do LinkedIn</h3>
+          </div>
+          <p class="section-desc">
+            Selecione o PDF exportado do LinkedIn. O arquivo e o perfil atual serão enviados ao Gemini
+            para análise; nada será salvo até você revisar e aplicar a sugestão. O PDF não será armazenado.
+          </p>
+          <div class="profile-import-toolbar">
+            <div class="form-group">
+              <label for="candidate-profile-pdf">Arquivo PDF (máximo 10 MB)</label>
+              <input
+                id="candidate-profile-pdf"
+                class="form-input profile-pdf-input"
+                type="file"
+                accept=".pdf,application/pdf"
+                [disabled]="isAnalyzingProfile"
+                (change)="onProfilePdfSelected($event)" />
+            </div>
+            <button
+              class="btn btn-primary"
+              [disabled]="!profilePdf || isAnalyzingProfile"
+              (click)="analyzeProfilePdf()">
+              @if (isAnalyzingProfile) {
+                <span class="spinner"></span> Analisando PDF...
+              } @else {
+                Analisar com Gemini
+              }
+            </button>
+          </div>
+          @if (profilePdf) {
+            <p class="profile-file-name">Selecionado: {{ profilePdf.name }}</p>
+          }
+          @if (profilePdfError) {
+            <p class="profile-error" role="alert">{{ profilePdfError }}</p>
+          }
+        </div>
+
+        @if (profileAnalysis) {
+          <div class="editor-wrapper profile-analysis-preview">
+            <div class="section-header">
+              <div>
+                <h3>Revise a sugestão do Gemini</h3>
+                <p class="section-desc">Edite o perfil e os termos antes de aplicar.</p>
+              </div>
+            </div>
+            @if (profileAnalysis.warnings.length > 0) {
+              <div class="profile-analysis-warnings" role="status">
+                <strong>Confirme estes pontos:</strong>
+                <ul>
+                  @for (warning of profileAnalysis.warnings; track $index) {
+                    <li>{{ warning }}</li>
+                  }
+                </ul>
+              </div>
+            }
+            <div class="form-group">
+              <label for="profile-analysis-markdown">Perfil profissional sugerido</label>
+              <textarea
+                id="profile-analysis-markdown"
+                class="markdown-editor profile-analysis-editor font-mono"
+                [(ngModel)]="profileAnalysis.profileMarkdown"></textarea>
+            </div>
+            <div class="profile-analysis-fields">
+              <div class="form-group">
+                <label for="profile-analysis-includes">Palavras-chave para incluir</label>
+                <textarea
+                  id="profile-analysis-includes"
+                  class="form-input profile-keywords"
+                  rows="3"
+                  [(ngModel)]="analysisIncludeKeywords"></textarea>
+                <small>Separe os termos por vírgula; eles serão usados como alternativas de busca.</small>
+              </div>
+              <div class="form-group">
+                <label for="profile-analysis-excludes">Palavras-chave para excluir</label>
+                <textarea
+                  id="profile-analysis-excludes"
+                  class="form-input profile-keywords"
+                  rows="3"
+                  [(ngModel)]="analysisExcludeKeywords"></textarea>
+              </div>
+            </div>
+            <div class="profile-analysis-actions">
+              <button
+                class="btn btn-secondary"
+                [disabled]="isApplyingProfileAnalysis"
+                (click)="discardProfileAnalysis()">
+                Descartar sugestão
+              </button>
+              <button
+                class="btn btn-success"
+                [disabled]="isApplyingProfileAnalysis || !profileAnalysis.profileMarkdown.trim()"
+                (click)="applyProfileAnalysis()">
+                @if (isApplyingProfileAnalysis) {
+                  <span class="spinner"></span> Aplicando...
+                } @else {
+                  Aplicar perfil e filtros
+                }
+              </button>
+            </div>
+          </div>
+        }
+
+        <div class="editor-wrapper">
+          <textarea
+            class="markdown-editor font-mono"
+            [(ngModel)]="profileMarkdown"
+            placeholder="# Perfil do Candidato..."></textarea>
+        </div>
+      </section>
+    }
+  </main>
+
+  <!-- ================================================= -->
+  <!-- JOB DETAILS MODAL -->
+  <!-- ================================================= -->
+  @if (selectedJob) {
+    <div class="modal-backdrop" (click)="closeJobModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-title-box">
+            <div class="score-badge-large" [ngClass]="getScoreBadgeClass(selectedJob.score)">
+              <span class="score-big">{{ selectedJob.score }}</span>
+              <span class="score-scale">/10</span>
+            </div>
+            <div>
+              <h2>{{ selectedJob.title }}</h2>
+              <div class="modal-subtitle">
+                <span>{{ selectedJob.company || 'Empresa não informada' }}</span>
+                <span>•</span>
+                <span>{{ selectedJob.source }}</span>
+                <span>•</span>
+                <span>{{ selectedJob.createdAt | date:'short' }}</span>
+              </div>
+            </div>
+          </div>
+          <button class="btn-close-modal" (click)="closeJobModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Status selector bar -->
+          <div class="status-selector-row">
+            <span class="status-selector-label">Mudar Status da Candidatura:</span>
+            <div class="status-btn-group">
+              <button
+                class="status-btn"
+                [class.active]="selectedJob.status === 'novo'"
+                (click)="updateJobStatus(selectedJob, 'novo')">
+                Novo
+              </button>
+              <button
+                class="status-btn"
+                [class.active]="selectedJob.status === 'salvo'"
+                (click)="updateJobStatus(selectedJob, 'salvo')">
+                Salvar
+              </button>
+              <button
+                class="status-btn"
+                [class.active]="selectedJob.status === 'aplicado'"
+                (click)="updateJobStatus(selectedJob, 'aplicado')">
+                Aplicado
+              </button>
+              <button
+                class="status-btn"
+                [class.active]="selectedJob.status === 'entrevista'"
+                (click)="updateJobStatus(selectedJob, 'entrevista')">
+                Entrevista
+              </button>
+              <button
+                class="status-btn"
+                [class.active]="selectedJob.status === 'descartada'"
+                (click)="updateJobStatus(selectedJob, 'descartada')">
+                Descartada
+              </button>
+            </div>
+          </div>
+
+          <!-- Summary Box -->
+          <div class="analysis-box">
+            <h4>Resumo da avaliação</h4>
+            <p>{{ selectedJob.summary }}</p>
+          </div>
+
+          <!-- Strengths & Gaps 2-column -->
+          <div class="two-columns-box">
+            <div class="strengths-box">
+              <h4>Pontos fortes</h4>
+              @if (selectedJob.strengths && selectedJob.strengths.length > 0) {
+                <ul>
+                  @for (s of selectedJob.strengths; track s) {
+                    <li>{{ s }}</li>
+                  }
+                </ul>
+              } @else {
+                <p class="text-muted">Nenhum ponto forte destacado.</p>
+              }
+            </div>
+
+            <div class="gaps-box">
+              <h4>Requisitos a desenvolver</h4>
+              @if (selectedJob.gaps && selectedJob.gaps.length > 0) {
+                <ul>
+                  @for (g of selectedJob.gaps; track g) {
+                    <li>{{ g }}</li>
+                  }
+                </ul>
+              } @else {
+                <p class="text-muted">Nenhum gap crítico identificado.</p>
+              }
+            </div>
+          </div>
+
+          <!-- CV Tips -->
+          @if (selectedJob.cvTips) {
+            <div class="analysis-box cv-box">
+              <div class="box-header-action">
+                <h4>Dicas para o currículo</h4>
+                <button class="btn btn-secondary btn-sm" (click)="copyToClipboard(selectedJob.cvTips, 'Dicas de currículo')">
+                  Copiar
+                </button>
+              </div>
+              <p>{{ selectedJob.cvTips }}</p>
+            </div>
+          }
+
+          <!-- Recruiter Message -->
+          @if (selectedJob.recruiterMessage) {
+            <div class="analysis-box message-box">
+              <div class="box-header-action">
+                <h4>Mensagem para o recrutador</h4>
+                <button class="btn btn-primary btn-sm" (click)="copyToClipboard(selectedJob.recruiterMessage, 'Mensagem ao recrutador')">
+                  Copiar mensagem
+                </button>
+              </div>
+              <p class="recruiter-text font-mono">{{ selectedJob.recruiterMessage }}</p>
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer">
+          <a [href]="selectedJob.url" target="_blank" class="btn btn-primary btn-large">
+            Abrir vaga original
+          </a>
+          <button class="btn btn-secondary" (click)="closeJobModal()">
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Toast Notification -->
+  @if (toast) {
+    <div class="toast-popup" [class.success]="toast.type === 'success'" [class.error]="toast.type === 'error'">
+      <span class="toast-icon">{{ toast.type === 'success' ? 'OK' : toast.type === 'error' ? '!' : 'i' }}</span>
+      <span class="toast-msg">{{ toast.message }}</span>
+    </div>
+  }
+</div>
