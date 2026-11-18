@@ -111,11 +111,46 @@ export interface EmailOptions {
 
 export interface AppConfig {
   agent: AgentOptions;
+  geminiConfigured?: boolean;
+  anthropicConfigured?: boolean;
+  telegramConfigured?: boolean;
+  emailConfigured?: boolean;
   gemini: GeminiOptions;
   anthropic: AnthropicOptions;
   telegram: TelegramOptions;
   rss: RssOptions;
   email: EmailOptions;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  displayName: string;
+  pictureUrl?: string;
+  role: 'admin' | 'user';
+  searchCreditsRemaining: number;
+  savedJobsCount: number;
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  expiresAt: string;
+  user: AuthUser;
+}
+
+export interface AccountStatus {
+  user: AuthUser;
+  maxSavedJobs: number;
+  maxInitialSearchCredits: number;
+  lastRun: RunStatus;
+}
+
+export type AdminUser = AuthUser;
+
+export interface Invitation {
+  email: string;
+  inviteCode: string;
+  expiresAt: string;
 }
 
 export interface TestResult {

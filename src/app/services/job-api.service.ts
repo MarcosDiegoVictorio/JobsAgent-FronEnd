@@ -3,7 +3,11 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
   AppConfig,
+  AccountStatus,
+  AdminUser,
+  AuthResponse,
   CandidateProfile,
+  Invitation,
   Job,
   JobFilter,
   JobStatistics,
@@ -27,6 +31,37 @@ declare global {
 export class JobApiService {
   private http = inject(HttpClient);
   private baseUrl = (window.jobAgentConfig?.apiBaseUrl || '/api').replace(/\/+$/, '');
+
+  getGoogleAuthConfig(): Observable<{ googleClientId: string; inviteOnly: boolean }> {
+    return this.http.get<{ googleClientId: string; inviteOnly: boolean }>(`${this.baseUrl}/auth/config`);
+  }
+
+  createAuthNonce(): Observable<{ nonce: string }> {
+    return this.http.post<{ nonce: string }>(`${this.baseUrl}/auth/nonce`, {});
+  }
+
+  signInWithGoogle(credential: string, nonce: string, inviteCode: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.baseUrl}/auth/google`, { credential, nonce, inviteCode });
+  }
+
+  getAccount(): Observable<AccountStatus> {
+    return this.http.get<AccountStatus>(`${this.baseUrl}/account`);
+  }
+
+  getAdminUsers(): Observable<AdminUser[]> {
+    return this.http.get<AdminUser[]>(`${this.baseUrl}/admin/users`);
+  }
+
+  createInvitation(email: string, expiresInDays: number): Observable<Invitation> {
+    return this.http.post<Invitation>(`${this.baseUrl}/admin/invitations`, { email, expiresInDays });
+  }
+
+  grantSearchCredit(userId: string): Observable<{ searchCreditsRemaining: number }> {
+    return this.http.post<{ searchCreditsRemaining: number }>(
+      `${this.baseUrl}/admin/users/${encodeURIComponent(userId)}/search-credit`,
+      {}
+    );
+  }
 
   // Jobs
   getJobs(filter: JobFilter): Observable<PagedResult<Job>> {
@@ -73,8 +108,8 @@ export class JobApiService {
   }
 
   // Configuration
-  getConfig(): Observable<AppConfig> {
-    return this.http.get<AppConfig>(`${this.baseUrl}/config`);
+  getConfig(): Observable<Partial<AppConfig>> {
+    return this.http.get<Partial<AppConfig>>(`${this.baseUrl}/config`);
   }
 
   saveConfig(config: AppConfig): Observable<{ success: boolean; message: string }> {

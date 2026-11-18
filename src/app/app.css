@@ -2161,3 +2161,118 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse at 15% 10%, rgba(59, 130, 246, 0.16), transparent 42%),
+    radial-gradient(ellipse at 85% 90%, rgba(139, 92, 246, 0.13), transparent 40%),
+    var(--bg-primary);
+}
+
+.auth-card {
+  width: min(100%, 440px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 36px;
+  text-align: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+.auth-card h1 {
+  margin: 0;
+  color: var(--text-main);
+}
+
+.auth-card > p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.auth-card .form-group {
+  width: 100%;
+  text-align: left;
+}
+
+.google-signin-button {
+  min-height: 42px;
+}
+
+.auth-privacy-note {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.account-summary {
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  color: var(--text-main);
+  font-size: 12px;
+}
+
+.account-summary small {
+  color: var(--text-dim);
+}
+
+.admin-user-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.admin-user-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-user-row span,
+.admin-user-row small {
+  color: var(--text-muted);
+}
+
+.invitation-result {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 16px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.invitation-result code {
+  overflow-wrap: anywhere;
+  color: var(--text-main);
+}
+
+@media (max-width: 760px) {
+  .auth-card {
+    padding: 24px;
+  }
+
+  .account-summary {
+    display: none;
+  }
+
+  .admin-user-row {
+    align-items: flex-start;
+  }
+}

@@ -1,3 +1,46 @@
+@if (isRestoringSession()) {
+  <main class="auth-shell">
+    <div class="auth-card">
+      <span class="logo-icon" aria-hidden="true">J</span>
+      <h1>JobAgent</h1>
+      <p>Validando sua sessão...</p>
+      <span class="spinner"></span>
+    </div>
+  </main>
+} @else if (!isAuthenticated()) {
+  <main class="auth-shell">
+    <section class="auth-card">
+      <span class="logo-icon" aria-hidden="true">J</span>
+      <span class="eyebrow">BETA POR CONVITE</span>
+      <h1>Bem-vindo ao JobAgent</h1>
+      <p>Entre com sua conta Google para organizar sua busca de vagas.</p>
+      <div class="form-group">
+        <label for="invite-code">Código do convite</label>
+        <input
+          id="invite-code"
+          class="form-input"
+          type="text"
+          autocomplete="off"
+          placeholder="Cole aqui o código recebido"
+          [(ngModel)]="inviteCode" />
+      </div>
+      <div id="googleSignInButton" class="google-signin-button"></div>
+      @if (isLoadingGoogle) {
+        <p class="form-hint">Preparando login seguro...</p>
+      }
+      @if (authError) {
+        <p class="profile-error" role="alert">{{ authError }}</p>
+      }
+      <button class="btn btn-secondary" [disabled]="isLoadingGoogle" (click)="retryGoogleSignIn()">
+        Atualizar botão de login
+      </button>
+      <p class="auth-privacy-note">
+        O acesso é por convite. Seu perfil e suas vagas são privados da sua conta; durante a análise,
+        o perfil é enviado ao provedor de IA configurado pelo administrador.
+      </p>
+    </section>
+  </main>
+} @else {
 <div class="app-container">
   <!-- Top Navigation Bar -->
   <header class="app-header">
@@ -28,18 +71,14 @@
             <span class="counter-badge">{{ stats?.totalJobs }}</span>
           }
         </button>
-        <button
-          class="nav-tab"
-          [class.active]="activeTab === 'config'"
-          (click)="setTab('config')">
-          <span class="tab-icon" aria-hidden="true">
-            <svg viewBox="0 0 20 20" fill="none">
-              <circle cx="10" cy="10" r="3" />
-              <path d="M16.2 11.5a6.6 6.6 0 0 0 0-3l1.2-.9-1.6-2.8-1.4.5a6.6 6.6 0 0 0-2.6-1.5L11.5 2h-3l-.3 1.8a6.6 6.6 0 0 0-2.6 1.5l-1.4-.5-1.6 2.8 1.2.9a6.6 6.6 0 0 0 0 3l-1.2.9 1.6 2.8 1.4-.5a6.6 6.6 0 0 0 2.6 1.5l.3 1.8h3l.3-1.8a6.6 6.6 0 0 0 2.6-1.5l1.4.5 1.6-2.8-1.2-.9Z" />
-            </svg>
-          </span>
-          Configurações
-        </button>
+        @if (authUser()?.role === 'admin') {
+          <button
+            class="nav-tab"
+            [class.active]="activeTab === 'admin'"
+            (click)="setTab('admin')">
+            Administração
+          </button>
+        }
         <button
           class="nav-tab"
           [class.active]="activeTab === 'profile'"
@@ -56,6 +95,13 @@
     </div>
 
     <div class="header-right">
+      @if (authUser(); as user) {
+        <div class="account-summary">
+          <span>{{ user.displayName }}</span>
+          <small>{{ user.savedJobsCount }}/10 vagas · {{ user.searchCreditsRemaining }} busca(s)</small>
+        </div>
+      }
+      <button class="btn btn-secondary btn-sm" (click)="signOut()">Sair</button>
       <!-- Status Badge -->
       <div class="status-indicator" [class.running]="runStatus().isRunning">
         <div class="status-dot"></div>
@@ -72,13 +118,13 @@
       <!-- Action Button -->
       <button
         class="btn btn-primary btn-run"
-        [disabled]="runStatus().isRunning"
+        [disabled]="runStatus().isRunning || !canRunSearch()"
         (click)="triggerRun()">
         @if (runStatus().isRunning) {
           <span class="spinner"></span>
           Buscando...
         } @else {
-          Executar busca
+          {{ authUser()?.searchCreditsRemaining ? 'Executar busca' : 'Sem buscas' }}
         }
       </button>
     </div>
@@ -953,6 +999,79 @@
         </div>
       </section>
     }
+
+    @if (activeTab === 'admin' && authUser()?.role === 'admin') {
+      <section class="tab-content admin-tab">
+        <div class="section-header">
+          <div>
+            <h2>Administração de convites</h2>
+            <p class="section-desc">Convide pessoas e libere créditos de busca manualmente.</p>
+          </div>
+          <button class="btn btn-secondary" (click)="loadAdminUsers()">Atualizar contas</button>
+        </div>
+
+        <div class="config-card">
+          <div class="card-title"><h3>Criar convite</h3></div>
+          <div class="profile-management-fields">
+            <div class="form-group">
+              <label for="invite-email">E-mail Google autorizado</label>
+              <input id="invite-email" class="form-input" type="email" [(ngModel)]="inviteEmail" />
+            </div>
+            <div class="form-group">
+              <label for="invite-expiry">Validade (dias)</label>
+              <input
+                id="invite-expiry"
+                class="form-input"
+                type="number"
+                min="1"
+                max="30"
+                [(ngModel)]="inviteExpiresInDays" />
+            </div>
+          </div>
+          <button
+            class="btn btn-primary"
+            [disabled]="isCreatingInvitation || !inviteEmail.trim()"
+            (click)="createInvitation()">
+            {{ isCreatingInvitation ? 'Criando...' : 'Gerar convite' }}
+          </button>
+          @if (createdInvitation) {
+            <div class="invitation-result" role="status">
+              <strong>Convite criado para {{ createdInvitation.email }}</strong>
+              <p>Copie agora; o código completo não será exibido novamente.</p>
+              <code>{{ createdInvitation.inviteCode }}</code>
+              <button class="btn btn-secondary btn-sm" (click)="copyInvitation()">Copiar link de convite</button>
+            </div>
+          }
+        </div>
+
+        <div class="config-card">
+          <div class="card-title"><h3>Contas cadastradas</h3></div>
+          @if (isLoadingAdmin) {
+            <p>Carregando contas...</p>
+          } @else {
+            <div class="admin-user-list">
+              @for (user of adminUsers; track user.id) {
+                <div class="admin-user-row">
+                  <div>
+                    <strong>{{ user.displayName }}</strong>
+                    <span>{{ user.email }}</span>
+                    <small>{{ user.savedJobsCount }}/10 vagas · {{ user.searchCreditsRemaining }} busca(s)</small>
+                  </div>
+                  <button
+                    class="btn btn-secondary btn-sm"
+                    [disabled]="user.role === 'admin'"
+                    (click)="grantSearchCredit(user)">
+                    Liberar busca
+                  </button>
+                </div>
+              } @empty {
+                <p>Nenhuma conta cadastrada.</p>
+              }
+            </div>
+          }
+        </div>
+      </section>
+    }
   </main>
 
   <!-- ================================================= -->
@@ -1101,3 +1220,4 @@
     </div>
   }
 </div>
+}

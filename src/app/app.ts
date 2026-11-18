@@ -2,9 +2,14 @@ import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobApiService } from './services/job-api.service';
+import { AuthService } from './services/auth.service';
+import { firstValueFrom } from 'rxjs';
 import {
+  AccountStatus,
+  AdminUser,
   AppConfig,
   CandidateProfile,
+  Invitation,
   Job,
   JobFilter,
   JobStatistics,
@@ -13,6 +18,27 @@ import {
   TestResult,
   RssFeed
 } from './models/job.model';
+
+interface GoogleCredentialResponse {
+  credential: string;
+}
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize(options: {
+            client_id: string;
+            nonce: string;
+            callback: (response: GoogleCredentialResponse) => void;
+          }): void;
+          renderButton(element: HTMLElement, options: Record<string, string>): void;
+        };
+      };
+    };
+  }
+}
 
 @Component({
   selector: 'app-root',
@@ -23,6 +49,20 @@ import {
 })
 export class App implements OnInit, OnDestroy {
   private api = inject(JobApiService);
+  private auth = inject(AuthService);
+  readonly authUser = this.auth.currentUser;
+  isAuthenticated = signal(false);
+  isRestoringSession = signal(false);
+  isLoadingGoogle = false;
+  googleClientId = '';
+  inviteCode = '';
+  authError = '';
+  adminUsers: AdminUser[] = [];
+  inviteEmail = '';
+  inviteExpiresInDays = 7;
+  createdInvitation: Invitation | null = null;
+  isLoadingAdmin = false;
+  isCreatingInvitation = false;
 
   // Tabs
   activeTab = 'jobs'; // 'jobs' | 'config' | 'profile'
@@ -144,11 +184,12 @@ export class App implements OnInit, OnDestroy {
   private toastTimer: any;
 
   ngOnInit(): void {
-    this.loadStats();
-    this.loadJobs();
-    this.loadConfig();
-    this.loadProfile();
-    this.startStatusPolling();
+    this.inviteCode = new URLSearchParams(window.location.search).get('invite') || '';
+    if (this.auth.accessToken()) {
+      this.restoreSession();
+    } else {
+      this.loadGoogleAuthConfig();
+    }
   }
 
   ngOnDestroy(): void {
@@ -169,7 +210,232 @@ export class App implements OnInit, OnDestroy {
       this.loadConfig();
     } else if (tab === 'profile') {
       this.loadProfile();
+    } else if (tab === 'admin') {
+      this.loadAdminUsers();
     }
+  }
+
+  private restoreSession(): void {
+    this.isRestoringSession.set(true);
+    this.api.getAccount().subscribe({
+      next: (account) => {
+        this.auth.updateUser(account.user);
+        this.isRestoringSession.set(false);
+        this.enterApplication(account);
+      },
+      error: () => {
+        this.auth.clearSession();
+        this.isAuthenticated.set(false);
+        this.isRestoringSession.set(false);
+        this.loadGoogleAuthConfig();
+      }
+    });
+  }
+
+  private enterApplication(account?: AccountStatus): void {
+    this.isAuthenticated.set(true);
+    if (account) {
+      this.runStatus.set(account.lastRun);
+    }
+    this.loadStats();
+    this.loadJobs();
+    this.loadProfile();
+    this.startStatusPolling();
+    if (this.authUser()?.role === 'admin') {
+      this.loadAdminUsers();
+    }
+  }
+
+  private loadGoogleAuthConfig(): void {
+    this.api.getGoogleAuthConfig().subscribe({
+      next: (config) => {
+        this.googleClientId = config.googleClientId;
+        this.authError = '';
+        this.initializeGoogleButton();
+      },
+      error: (error) => {
+        this.authError = error.error?.detail ?? error.error?.message ?? 'Login do Google não configurado.';
+      }
+    });
+  }
+
+  private async initializeGoogleButton(): Promise<void> {
+    if (!this.googleClientId) return;
+
+    this.isLoadingGoogle = true;
+    this.authError = '';
+    try {
+      await this.loadGoogleIdentityScript();
+      const { nonce } = await firstValueFrom(this.api.createAuthNonce());
+      const google = window.google;
+      if (!nonce || !google) {
+        throw new Error('Não foi possível iniciar o login do Google.');
+      }
+
+      const container = document.getElementById('googleSignInButton');
+      if (!container) return;
+      container.replaceChildren();
+      google.accounts.id.initialize({
+        client_id: this.googleClientId,
+        nonce,
+        callback: (response) => this.finishGoogleSignIn(response.credential, nonce)
+      });
+      google.accounts.id.renderButton(container, {
+        theme: 'outline',
+        size: 'large',
+        shape: 'rectangular',
+        text: 'signin_with',
+        locale: 'pt-BR',
+        width: '320'
+      });
+    } catch (error) {
+      this.authError = error instanceof Error ? error.message : 'Não foi possível iniciar o login do Google.';
+    } finally {
+      this.isLoadingGoogle = false;
+    }
+  }
+
+  retryGoogleSignIn(): void {
+    this.initializeGoogleButton();
+  }
+
+  canRunSearch(): boolean {
+    const user = this.authUser();
+    return !!user && user.searchCreditsRemaining > 0 && user.savedJobsCount < 10;
+  }
+
+  private loadGoogleIdentityScript(): Promise<void> {
+    if (window.google) return Promise.resolve();
+
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector<HTMLScriptElement>('script[data-google-identity]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(), { once: true });
+        existing.addEventListener('error', () => reject(new Error('Falha ao carregar o login do Google.')), { once: true });
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.dataset['googleIdentity'] = 'true';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Falha ao carregar o login do Google.'));
+      document.head.appendChild(script);
+    });
+  }
+
+  private finishGoogleSignIn(credential: string, nonce: string): void {
+    this.isLoadingGoogle = true;
+    this.authError = '';
+    this.api.signInWithGoogle(credential, nonce, this.inviteCode.trim()).subscribe({
+      next: (session) => {
+        this.auth.saveSession(session.accessToken, session.user);
+        this.inviteCode = '';
+        this.isLoadingGoogle = false;
+        this.enterApplication();
+      },
+      error: (error) => {
+        this.isLoadingGoogle = false;
+        this.authError = error.error?.message ?? error.error?.detail ?? error.message ?? 'Não foi possível entrar.';
+        this.initializeGoogleButton();
+      }
+    });
+  }
+
+  signOut(): void {
+    if (this.statusPollInterval) {
+      clearInterval(this.statusPollInterval);
+      this.statusPollInterval = undefined;
+    }
+    this.auth.clearSession();
+    this.isAuthenticated.set(false);
+    this.activeTab = 'jobs';
+    this.jobs = [];
+    this.stats = null;
+    this.profiles = [];
+    this.profileMarkdown = '';
+    this.activeProfileId = '';
+    this.profileAnalysis = null;
+    this.selectedJob = null;
+    this.adminUsers = [];
+    this.filter = {
+      page: 1,
+      pageSize: 12,
+      status: '',
+      minScore: undefined,
+      search: '',
+      orderBy: 'score',
+      descending: true
+    };
+    this.runStatus.set({
+      isRunning: false,
+      lastScoredCount: 0,
+      lastCollectedCount: 0,
+      totalRuns: 0,
+      currentPhase: 'Ocioso'
+    });
+    this.loadGoogleAuthConfig();
+  }
+
+  private refreshAccount(): void {
+    this.api.getAccount().subscribe({
+      next: (account) => this.auth.updateUser(account.user),
+      error: (error) => {
+        if (error.status === 401) this.signOut();
+      }
+    });
+  }
+
+  loadAdminUsers(): void {
+    this.isLoadingAdmin = true;
+    this.api.getAdminUsers().subscribe({
+      next: (users) => {
+        this.adminUsers = users;
+        this.isLoadingAdmin = false;
+      },
+      error: (error) => {
+        this.isLoadingAdmin = false;
+        this.showToast(error.error?.message ?? error.message ?? 'Não foi possível carregar as contas.', 'error');
+      }
+    });
+  }
+
+  createInvitation(): void {
+    this.isCreatingInvitation = true;
+    this.createdInvitation = null;
+    this.api.createInvitation(this.inviteEmail.trim(), this.inviteExpiresInDays).subscribe({
+      next: (invitation) => {
+        this.createdInvitation = invitation;
+        this.inviteEmail = '';
+        this.isCreatingInvitation = false;
+      },
+      error: (error) => {
+        this.isCreatingInvitation = false;
+        this.showToast(error.error?.message ?? error.error?.detail ?? error.message ?? 'Não foi possível criar o convite.', 'error');
+      }
+    });
+  }
+
+  copyInvitation(): void {
+    if (!this.createdInvitation) return;
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.searchParams.set('invite', this.createdInvitation.inviteCode);
+    this.copyToClipboard(url.toString(), 'Convite');
+  }
+
+  grantSearchCredit(user: AdminUser): void {
+    this.api.grantSearchCredit(user.id).subscribe({
+      next: (result) => {
+        user.searchCreditsRemaining = result.searchCreditsRemaining;
+        this.showToast(`Crédito liberado para ${user.email}.`, 'success');
+      },
+      error: (error) => {
+        this.showToast(error.error?.message ?? error.message ?? 'Não foi possível liberar o crédito.', 'error');
+      }
+    });
   }
 
   // --- Orchestrator ---
@@ -188,23 +454,40 @@ export class App implements OnInit, OnDestroy {
         if (wasRunning && !status.isRunning) {
           this.loadStats();
           this.loadJobs();
+          this.refreshAccount();
           this.showToast('Ciclo de busca finalizado!', 'info');
         }
       },
-      error: () => {}
+      error: (error) => {
+        if (error.status === 401) {
+          this.signOut();
+        }
+      }
     });
   }
 
   triggerRun(): void {
     if (this.runStatus().isRunning) return;
 
-    this.showToast('Iniciando ciclo de busca em segundo plano...', 'info');
+    this.showToast('Iniciando busca...', 'info');
     this.api.runOrchestrator(false).subscribe({
-      next: () => {
+      next: (result) => {
+        const user = this.authUser();
+        if (user && typeof result.remainingSearchCredits === 'number') {
+          this.auth.updateUser({
+            ...user,
+            searchCreditsRemaining: result.remainingSearchCredits
+          });
+        }
+        this.runStatus.update((status) => ({
+          ...status,
+          isRunning: true,
+          currentPhase: 'Busca iniciada'
+        }));
         this.checkStatus();
       },
       error: (err) => {
-        this.showToast('Erro ao iniciar busca: ' + err.message, 'error');
+        this.showToast(err.error?.message ?? 'Erro ao iniciar busca: ' + err.message, 'error');
       }
     });
   }
@@ -288,6 +571,7 @@ export class App implements OnInit, OnDestroy {
         this.jobs = this.jobs.filter((j) => j.id !== job.id);
         if (this.selectedJob?.id === job.id) this.selectedJob = null;
         this.loadStats();
+        this.refreshAccount();
         this.showToast('Vaga removida com sucesso.', 'info');
       },
       error: (err) => {
@@ -308,7 +592,16 @@ export class App implements OnInit, OnDestroy {
     this.isLoadingConfig = true;
     this.api.getConfig().subscribe({
       next: (cfg) => {
-        this.config = cfg;
+        this.config = {
+          ...this.config,
+          ...cfg,
+          agent: { ...this.config.agent, ...cfg.agent },
+          gemini: this.config.gemini,
+          anthropic: this.config.anthropic,
+          telegram: this.config.telegram,
+          email: this.config.email,
+          rss: { ...this.config.rss, ...cfg.rss }
+        };
         this.isLoadingConfig = false;
       },
       error: (err) => {
